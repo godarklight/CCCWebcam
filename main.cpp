@@ -7,7 +7,10 @@
 
 //Webcam Stuff
 const std::string WINDOW_NAME = "CCCWebcam";
+const int WEBCAM_WIDTH = 1920;
+const int WEBCAM_HEIGHT = 1080;
 std::unique_ptr<cv::VideoCapture> vc;
+int displayEnabled = 0;
 
 //HTTP Stuff
 std::string httpDestination = "http://godarklight.info.tm/webcam/index.php";
@@ -35,7 +38,18 @@ int setup_zbar()
 
 int setup_webcam()
 {
-    cv::namedWindow(WINDOW_NAME, CV_WINDOW_AUTOSIZE);
+#ifdef __linux__
+    if (std::getenv("DISPLAY")[0] != 0)
+    {
+        displayEnabled = 1;
+    }
+#else
+    displayEnabled = 1;
+#endif
+    if (displayEnabled)
+    {
+        cv::namedWindow(WINDOW_NAME, CV_WINDOW_AUTOSIZE);
+    }
     int ok = 1;
     vc = std::unique_ptr<cv::VideoCapture>(new cv::VideoCapture(0));
     if (!vc->isOpened())
@@ -43,11 +57,17 @@ int setup_webcam()
         ok = 0;
         std::cout << "Error while setting up webcam" << std::endl;
     }
+    vc->set(CV_CAP_PROP_FRAME_WIDTH, WEBCAM_WIDTH);
+    vc->set(CV_CAP_PROP_FRAME_HEIGHT, WEBCAM_HEIGHT);
     for (int i = 0; i < 30; i++)
     {
         cv::Mat mat;
         vc->read(mat);
-        imshow(WINDOW_NAME, mat);
+        if (displayEnabled)
+        {
+            imshow(WINDOW_NAME, mat);
+            cv::waitKey(1);
+        }
     }
     return ok;
 }
@@ -92,7 +112,6 @@ int send_webcam_id(std::string id)
 
 void scan_image(cv::Mat camImage)
 {
-    std::cout << "Scanning..." << std::endl;
     cv::Mat grayImage;
     cv::cvtColor(camImage, grayImage, CV_BGR2GRAY);
     int width = grayImage.cols;
@@ -108,6 +127,7 @@ void scan_image(cv::Mat camImage)
             lastID = scannedID;
             send_webcam_id(scannedID);
         }
+        return;
     }
 }
 
@@ -128,9 +148,19 @@ int webcam_loop()
             scan_image(camImage);
             frameNumber = 0;
         }
-        cv::putText(camImage, "Last scan: " + lastID, cv::Point(30,30), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar::all(255), 1, 8);
-        cv::imshow(WINDOW_NAME, camImage);
-        cv::waitKey(1);
+        if (displayEnabled)
+        {
+            cv::putText(camImage, "Last scan: " + lastID, cv::Point(30,30), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar::all(255), 1, 8);
+            cv::imshow(WINDOW_NAME, camImage);
+            int keyPress = cv::waitKey(1);
+            std::cout << keyPress << std::endl;
+	    //Quit on Esc, Q, or Ctrl+C
+            if (keyPress == 27 || keyPress == 113 || keyPress == 262243)
+            {
+                std::cout << "Exiting from user input" << std::endl;
+                ok = 0;
+            }
+        }
     }
     return ok;
 }
@@ -150,6 +180,7 @@ int main(int argc, char** argv)
     {
         return -3;
     }
+    std::cout << "Scannning..." << std::endl;
     while(webcam_loop())
     {
     }
