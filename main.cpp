@@ -39,7 +39,7 @@ int setup_zbar()
 int setup_webcam()
 {
 #ifdef __linux__
-    if (std::getenv("DISPLAY")[0] != 0)
+    if (std::getenv("DISPLAY") && std::getenv("DISPLAY")[0] != 0)
     {
         displayEnabled = 1;
     }
