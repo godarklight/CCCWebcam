@@ -37,7 +37,7 @@ int setup_webcam()
 {
     cv::namedWindow(WINDOW_NAME, CV_WINDOW_AUTOSIZE);
     int ok = 1;
-    vc = std::make_unique<cv::VideoCapture>(0);
+    vc = std::unique_ptr<cv::VideoCapture>(new cv::VideoCapture(0));
     if (!vc->isOpened())
     {
         ok = 0;
